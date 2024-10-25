@@ -1,58 +1,66 @@
-Madboly’s Study Notes
+# Madboly’s Study Notes
 
-This repository is a personal exploration of asynchronous and synchronous programming paradigms in Python, focusing on the foundational concepts that lead up to understanding Uvicorn, an ASGI server, and Starlette, an ASGI framework.
+This repository is a personal exploration of **asynchronous** and **synchronous programming paradigms** in Python. It primarily focuses on foundational concepts leading to an understanding of **Uvicorn**, an ASGI server, and **Starlette**, an ASGI framework.
 
-Since synchronous programming came before Asynchronous programming, we’ll start with synchronous concepts.
+## Overview
 
-	The target is to understand Uvicorn, which is built on Starlette.
+Since synchronous programming predates asynchronous programming, this study begins with synchronous concepts to build a strong foundation.
 
-Starlette: Starlette is an ASGI web framework designed for building fast, lightweight, asynchronous applications in Python. ASGI stands for Asynchronous Server Gateway Interface and is a standard that enables asynchronous Python web frameworks and applications to communicate with servers in a non-blocking way.
+> The target is to understand **Uvicorn**, which is built on **Starlette**.
 
-	In the current line of thought, ASGI seems like WSGI with added asyncio capabilities. We’ll explore below to see how accurate that is.
+### What is Starlette?
+**Starlette** is an ASGI web framework designed for building fast, lightweight, asynchronous applications in Python. ASGI, or **Asynchronous Server Gateway Interface**, is a standard enabling asynchronous Python web frameworks and applications to communicate with servers in a non-blocking way.
 
-Key Differences Between ASGI and WSGI
+In simpler terms, ASGI is comparable to **WSGI** but with added **asyncio capabilities**. This study will explore how true that comparison is.
 
-	•	WSGI (Web Server Gateway Interface):
-	•	WSGI is a specification for synchronous web applications in Python. It supports one request at a time per thread, making it suitable for traditional synchronous frameworks like Flask and Django (pre-async updates).
-	•	WSGI servers (such as Gunicorn and uWSGI) are limited by this synchronous nature, which restricts their use for handling tasks requiring long-lived connections, like WebSockets.
-	•	ASGI (Asynchronous Server Gateway Interface):
-	•	ASGI is an evolution of WSGI, created to support asynchronous frameworks and long-lived connection types, like WebSockets and HTTP/2.
-	•	ASGI applications can run both synchronous and asynchronous code, allowing frameworks like Starlette and FastAPI to manage concurrent requests efficiently, thanks to the event-driven nature of asynchronous programming with asyncio.
+## Key Differences Between ASGI and WSGI
 
-Asyncio and Asynchronous Programming
+| WSGI (Web Server Gateway Interface)                                                                                         | ASGI (Asynchronous Server Gateway Interface)                                                                                           |
+|-----------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| **Synchronous** specification for web applications in Python.                                                               | **Evolution** of WSGI, supporting asynchronous frameworks and long-lived connection types (e.g., WebSockets, HTTP/2).                  |
+| Supports one request per thread, ideal for traditional synchronous frameworks (Flask, Django pre-async updates).            | Allows both **synchronous** and **asynchronous** code execution, enabling frameworks like **Starlette** and **FastAPI**.               |
+| Limited for long-lived connections due to its synchronous nature. Examples: **Gunicorn** and **uWSGI**.                    | More **efficient** for concurrent requests thanks to its event-driven nature. Optimized for high **I/O demands** using **asyncio**.   |
 
-Why Use Asyncio?
+---
 
-asyncio is a foundational library in Python that enables asynchronous programming through the async/await syntax. This approach is particularly useful for applications with significant I/O operations—such as making network requests, reading files, or handling user input—because it allows the program to perform other tasks while waiting for I/O to complete.
+## Asyncio and Asynchronous Programming
 
-What’s the Difference Between Multithreading and Asyncio?
+### Why Use Asyncio?
+`asyncio` is a foundational library in Python that enables asynchronous programming through `async/await` syntax. It is particularly effective for **I/O-bound** applications, such as:
 
-	•	Multithreading:
-	•	In Python, multithreading allows multiple threads to execute tasks concurrently.
-	•	However, due to Python’s Global Interpreter Lock (GIL) in CPython, only one thread can execute Python bytecode at a time, which often limits the effectiveness of multithreading for CPU-bound tasks.
-	•	While multithreading can work well for I/O-bound tasks, it also comes with the overhead of managing multiple threads and dealing with potential concurrency issues (e.g., race conditions).
-	•	Asyncio:
-	•	asyncio operates on a single thread but achieves concurrency through coroutines. When a coroutine hits an await statement, it pauses, allowing the event loop to continue executing other coroutines that are ready.
-	•	This event-driven approach is more efficient for I/O-bound tasks as it avoids the need for multiple threads, reducing memory usage and the risk of concurrency issues.
-	•	Ideal for handling numerous concurrent tasks, asyncio enables smooth handling of requests, especially for web applications with high I/O demands.
+- **Network requests**
+- **File operations**
+- **Handling user input**
 
-Components of Asyncio
+Using asyncio allows the program to **perform other tasks while waiting for I/O** to complete.
 
-Understanding some core components of asyncio can help in writing efficient asynchronous applications:
+### What’s the Difference Between Multithreading and Asyncio?
 
-	•	Event Loop:
-	•	The asyncio event loop orchestrates the execution of asynchronous tasks. It cycles through tasks, checking if they are ready to run or waiting on I/O operations. When a coroutine awaits an operation, the loop temporarily pauses it and continues to other tasks.
-	•	Coroutines:
-	•	Coroutines, defined using async def, are functions that can be paused and resumed. By yielding control with await, they enable concurrent execution within a single thread.
-	•	Tasks:
-	•	asyncio tasks allow coroutines to run concurrently. By using asyncio.create_task(coroutine), a coroutine is scheduled to run in the background, letting the event loop manage it while other tasks continue.
-	•	Futures and Promises:
-	•	In asyncio, a Future is an object that represents a value that isn’t available yet but will be in the future. When a coroutine awaits a Future, it pauses until the Future is resolved (e.g., when an I/O operation completes). This is fundamental for handling asynchronous responses.
-	•	Await:
-	•	The await keyword pauses a coroutine until the awaited task completes. This keyword is the primary tool for achieving non-blocking behavior, letting the event loop handle other tasks while waiting.
+| **Multithreading**                                                                                                 | **Asyncio**                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| Allows multiple threads to run concurrently but is limited by Python’s **Global Interpreter Lock (GIL)** in CPython. | Runs on a **single thread** using coroutines, pausing at `await` statements to handle other tasks within a single event loop.     |
+| Works well for I/O-bound tasks but introduces complexity with **race conditions** and **thread management**.        | More efficient for I/O-bound tasks as it avoids the need for multiple threads, reducing memory usage and concurrency issues.      |
+| Less effective for **CPU-bound tasks** due to GIL limitations.                                                      | Ideal for managing **numerous concurrent I/O tasks** in web applications.                                                         |
 
-Moving Towards ASGI and Uvicorn
+---
 
-ASGI-based servers like Uvicorn extend these concepts to web applications, where multiple connections, requests, and responses can be managed concurrently in a non-blocking manner. Uvicorn uses the power of asyncio to handle a large number of simultaneous connections efficiently, making it a go-to choice for ASGI frameworks like Starlette and FastAPI.
+## Components of Asyncio
 
-> [to be continue]
+Async componenents:
+> everything is coroutines and boiles down to job scheduling between cpu and *coroutines*
+- **Event Loop**: Orchestrates the execution of asynchronous tasks. It cycles through tasks, running those ready or awaiting I/O operations.
+- **Coroutines**: Defined using `async def`, they can be paused and resumed, allowing concurrent execution within a single thread.
+- **Tasks**: Enable concurrent execution of coroutines. Created using `asyncio.create_task(coroutine)`, allowing coroutines to run in the background.
+- **Futures and Promises**: Represent values not yet available (e.g., awaiting I/O operations). When a coroutine awaits a Future, it pauses until the operation completes.
+- **Await**: The `await` keyword pauses a coroutine until the awaited task completes, allowing non-blocking behavior.
+
+---
+
+## Moving Towards ASGI and Uvicorn
+
+ASGI-based servers like **Uvicorn** leverage these asyncio concepts to support web applications handling numerous connections in a non-blocking way. Uvicorn’s efficient handling of connections makes it ideal for ASGI frameworks such as **Starlette** and **FastAPI**.
+
+---
+
+> **Note:** This document is a work in progress and will be expanded with further insights.
+
