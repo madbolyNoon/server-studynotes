@@ -1,90 +1,114 @@
-import socket
+import asyncio
 
-# Define a simple WSGI application
-def simple_app(environ, start_response):
-    print("WSGI Application: Received environ:", environ) 
-    
-    method = environ['REQUEST_METHOD']
-    path = environ['PATH_INFO']
+# Define an ASGI application
+async def asgi_app(scope, receive, send):
+    assert scope['type'] == 'http'  # Only handle HTTP connections
+
+    method = scope['method']
+    path = scope['path']
+    print("ASGI Application: Received scope:", scope) 
 
     # Respond to GET requests only
     if method == 'GET':
         print(f"Handling GET request at path: {path}")
-        
+
         if path == '/':
             response_body = b"Hello, World!"
         else:
             response_body = b"Implement it yourself"
-        
+
         # Send the 200 OK status and headers
         status = '200 OK'
-        headers = [('Content-type', 'text/plain; charset=utf-8')]
+        headers = [(b'content-type', b'text/plain; charset=utf-8')]
         print(f"Sending response with status: {status}")
-        start_response(status, headers)
-        return [response_body]
+
+        # Send the HTTP response start event
+        await send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': headers,
+        })
+
+        # Send the HTTP response body event
+        await send({
+            'type': 'http.response.body',
+            'body': response_body,
+        })
 
     else:
         # If not GET, return 405 Method Not Allowed
         print(f"Method {method} not allowed")
         status = '405 Method Not Allowed'
-        headers = [('Content-type', 'text/plain; charset=utf-8')]
-        start_response(status, headers)
-        return [b'Method not allowed']
+        headers = [(b'content-type', b'text/plain; charset=utf-8')]
 
-# Function to handle HTTP requests and serve WSGI responses
-def handle_request(client_socket):
+        # Send the HTTP response start event
+        await send({
+            'type': 'http.response.start',
+            'status': 405,
+            'headers': headers,
+        })
+
+        # Send the HTTP response body event
+        await send({
+            'type': 'http.response.body',
+            'body': b'Method not allowed',
+        })
+
+# Function to run the ASGI server
+async def run_asgi_server(app):
+    server = await asyncio.start_server(
+        lambda reader, writer: handle_asgi_connection(app, reader, writer),
+        '127.0.0.1', 8000
+    )
+    print("Serving on port 8000...")
+
+    async with server:
+        await server.serve_forever()
+
+# Handle the ASGI connection and process HTTP events
+async def handle_asgi_connection(app, reader, writer):
     try:
         # Receive request data from the client
         print("Waiting to receive request data from the client...")
-        request_data = client_socket.recv(1024)
+        request_data = await reader.read(1024)
 
-        # Decode the received bytes to a string
-        request_data = request_data.decode('utf-8')
-        print("Decoded request data:", request_data)
-
-        # Check if the request data is empty
-        if not request_data:
-            print("No data received, returning.")
-            return
-        
-        # Split request data into lines (headers and request line)
-        headers = request_data.splitlines()
-        print("Request headers:", headers)
-
-        # Parse the first line of the request (e.g., "GET / HTTP/1.1")
+        # Decode and parse the request
+        request_text = request_data.decode('utf-8')
+        print("Decoded request data:", request_text)
+        headers = request_text.splitlines()
         request_line = headers[0]
-        print("Request line:", request_line)
-        
         method, path, _ = request_line.split()
 
-        # Create a WSGI environment dictionary
-        environ = {
-            'REQUEST_METHOD': method,
-            'PATH_INFO': path
+        # Define ASGI scope
+        scope = {
+            'type': 'http',
+            'method': method,
+            'path': path,
+            'headers': [],
         }
 
-        print("Created WSGI environ:", environ)
+        # Define async receive and send functions for ASGI
+        async def receive():
+            # ASGI receive is only needed for request bodies (optional in this case)
+            return {'type': 'http.request'}
 
-        # Define a start_response function
-        def start_response(status, response_headers):
-            print(f"start_response called with status: {status}")
-            print("Response headers:", response_headers)
-            
-            # Send the status line and headers
-            client_socket.send(f"HTTP/1.1 {status}\r\n".encode('utf-8'))
-            for header in response_headers:
-                client_socket.send(f"{header[0]}: {header[1]}\r\n".encode('utf-8'))
-            client_socket.send(b"\r\n")  # End of headers
+        async def send(message):
+            # ASGI send function to handle different message types
+            if message['type'] == 'http.response.start':
+                status = message['status']
+                headers = message['headers']
+                writer.write(f"HTTP/1.1 {status} OK\r\n".encode('utf-8'))
+                for header in headers:
+                    writer.write(f"{header[0].decode()}: {header[1].decode()}\r\n".encode('utf-8'))
+                writer.write(b"\r\n")  # End of headers
 
-        # Call the WSGI application and send the response body
-        response_body = simple_app(environ, start_response)
-        
-        # Send the response body to the client
-        print("Sending response body to the client...")
-        for body in response_body:
-            client_socket.send(body)
+            elif message['type'] == 'http.response.body':
+                body = message.get('body', b'')
+                writer.write(body)
+                await writer.drain()
 
-        print("Response sent successfully.")
+        # Call the ASGI app
+        await app(scope, receive, send)
 
     except Exception as e:
         print(f"Error handling request: {e}")
@@ -92,37 +116,9 @@ def handle_request(client_socket):
     finally:
         # Close the client connection
         print("Closing the client connection.")
-        client_socket.close()
-
-# Function to start the WSGI server using raw sockets
-def run_server():
-    # Create a TCP socket
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    # Bind the socket to localhost:8000
-    server_socket.bind(('127.0.0.1', 8000))
-    server_socket.listen(5)
-    print("Serving on port 8000...")
-
-    # Server loop to handle incoming connections
-    while True:
-        try:
-            # Accept client connections
-            print("\nWaiting for a new client connection...")
-            client_socket, addr = server_socket.accept()
-            print(f"Accepted connection from {addr}")
-
-            # Handle the incoming request
-            handle_request(client_socket)
-
-        except KeyboardInterrupt:
-            print("\nShutting down the server.")
-            break
-
-    # Close the server socket
-    server_socket.close()
+        writer.close()
+        await writer.wait_closed()
 
 # Run the server
 if __name__ == '__main__':
-    run_server()
+    asyncio.run(run_asgi_server(asgi_app))
