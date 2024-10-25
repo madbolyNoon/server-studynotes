@@ -1,5 +1,3 @@
-Here’s a complete README draft with additional details to provide more context around asyncio, ASGI vs. WSGI, and components of asyncio.
-
 Madboly’s Study Notes
 
 This repository is a personal exploration of asynchronous and synchronous programming paradigms in Python, focusing on the foundational concepts that lead up to understanding Uvicorn, an ASGI server, and Starlette, an ASGI framework.
@@ -57,4 +55,4 @@ Moving Towards ASGI and Uvicorn
 
 ASGI-based servers like Uvicorn extend these concepts to web applications, where multiple connections, requests, and responses can be managed concurrently in a non-blocking manner. Uvicorn uses the power of asyncio to handle a large number of simultaneous connections efficiently, making it a go-to choice for ASGI frameworks like Starlette and FastAPI.
 
-By understanding the principles of asyncio and asynchronous programming, we build a foundation for more advanced, high-performance applications with ASGI-compatible servers and frameworks.
+> [to be continue]
